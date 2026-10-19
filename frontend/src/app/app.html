@@ -1,0 +1,18 @@
+<header class="app-header">
+  <h1>{{ title() }}</h1>
+
+  <div class="app-auth">
+    @if (!ready()) {
+      <span>Inicializando autenticación...</span>
+    } @else if (isAuthenticated()) {
+      <span>Hola, {{ userName() }}</span>
+      <button type="button" (click)="logout()">Cerrar sesión</button>
+    } @else {
+      <button type="button" (click)="login()">Iniciar sesión</button>
+    }
+  </div>
+</header>
+
+<main>
+  <router-outlet />
+</main>

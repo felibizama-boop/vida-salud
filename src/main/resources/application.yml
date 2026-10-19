@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          initial-interval: 3s
+          max-attempts: 3
+          max-interval: 10s
+          multiplier: 2.0
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: "https://login.microsoftonline.com/6ba162ab-7029-42ae-9da1-7d41f345ef4c/v2.0"
+
+vidasalud:
+  rabbitmq:
+    exchanges:
+      direct: "vidasalud.direct.exchange"
+      topic: "vidasalud.topic.exchange"
+    queues:
+      notificaciones:
+        name: "notificaciones.queue"
+        dlq: "notificaciones.dlq"
+        routing-key: "notificaciones.key"
+      tickets:
+        name: "tickets.queue"
+        dlq: "tickets.dlq"
+        routing-key: "tickets.key"
+      documentos:
+        name: "documentos.queue"
+        dlq: "documentos.dlq"
+        routing-key: "documents.#"
