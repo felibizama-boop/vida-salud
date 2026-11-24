@@ -1,0 +1,27 @@
+# =============================================================================
+#  VidaSalud - Infraestructura RabbitMQ
+# =============================================================================
+
+# Variables de entorno locales (nunca versionar credenciales reales)
+.env
+*.env
+.env.*
+
+# Volúmenes con bind mount local (si se cambia de named volume a carpeta)
+data/
+volumes/
+mnesia/
+
+# Archivos de definiciones exportadas desde la consola de administración
+definitions.json
+*.definitions.json
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

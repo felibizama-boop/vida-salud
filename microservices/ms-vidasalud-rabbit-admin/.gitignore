@@ -1,0 +1,36 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### Compiled class files ###
+*.class
+
+### Log files ###
+*.log
+logs/
+
+### IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.settings/
+.classpath
+.project
+
+### VS Code ###
+.vscode/
+
+### OS ###
+.DS_Store
+
+### Build output ###
+build/
+out/
+
+### Environment ###
+.env
+
+### Maven wrapper jar ###
+.mvn/wrapper/maven-wrapper.jar

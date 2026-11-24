@@ -1,12 +1,18 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
+  application:
+    name: vida-salud
+
+  # ---------------------------------------------------------------------------
+  # RabbitMQ (arquitectura previa: se mantiene intacta)
+  # ---------------------------------------------------------------------------
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
     listener:
       simple:
         acknowledge-mode: manual
@@ -16,12 +22,56 @@ spring:
           max-attempts: 3
           max-interval: 10s
           multiplier: 2.0
+
+  # ---------------------------------------------------------------------------
+  # Cliente Kafka (configuración avanzada del encargo EP5)
+  #   - bootstrap-servers : lista de brokers de arranque
+  #   - serializers       : JSON para los DTO de eventos
+  #   - consumer groups   : un group-id por flujo (ver vidasalud.kafka)
+  #   - propiedades adv.  : idempotencia, acks=all, polling, ack manual
+  # ---------------------------------------------------------------------------
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:29093,localhost:29094}
+    admin:
+      fail-fast: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        linger.ms: 10
+        compression.type: gzip
+        spring.json.add.type.headers: true
+    consumer:
+      group-id: ${KAFKA_DEFAULT_GROUP:vidasalud-appointments-group}
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 100
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        isolation.level: read_committed
+        spring.json.trusted.packages: "com.vidasalud.dto.event"
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+    listener:
+      type: single
+      ack-mode: manual_immediate
+      concurrency: ${KAFKA_LISTENER_CONCURRENCY:3}
+
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: "https://login.microsoftonline.com/6ba162ab-7029-42ae-9da1-7d41f345ef4c/v2.0"
 
+# -----------------------------------------------------------------------------
+# Configuración propia del dominio VidaSalud
+# -----------------------------------------------------------------------------
 vidasalud:
   rabbitmq:
     exchanges:
@@ -40,3 +90,33 @@ vidasalud:
         name: "documentos.queue"
         dlq: "documentos.dlq"
         routing-key: "documents.#"
+
+  kafka:
+    # Tópicos obligatorios del encargo (particiones / réplicas / cleanup.policy / retención)
+    topics:
+      appointments:
+        name: "appointments.events"
+        partitions: 3
+        replicas: 3
+        cleanup-policy: "delete"
+        retention-ms: 604800000        # 7 días
+        min-insync-replicas: 2
+        dlt: "appointments.events.DLT"
+      audit:
+        name: "audit.timeline"
+        partitions: 3
+        replicas: 3
+        cleanup-policy: "compact,delete"
+        retention-ms: 2592000000       # 30 días
+        min-insync-replicas: 2
+        dlt: "audit.timeline.DLT"
+    # Un consumer group por flujo de negocio (balanceo y resiliencia)
+    consumer-groups:
+      appointments: "vidasalud-appointments-group"
+      audit: "vidasalud-audit-group"
+    # Reintentos y backoff antes de enviar a la Dead Letter Topic
+    retry:
+      max-attempts: 3
+      initial-interval-ms: 1000
+      multiplier: 2.0
+      max-interval-ms: 10000

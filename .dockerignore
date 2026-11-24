@@ -1,0 +1,12 @@
+target/
+.idea/
+.vscode/
+*.log
+logs/
+
+# No forman parte del contexto de build del backend
+microservices/
+frontend/
+infra/
+node_modules/
+.git/

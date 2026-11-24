@@ -1,0 +1,39 @@
+server:
+  port: ${SERVER_PORT:8092}
+
+spring:
+  application:
+    name: ms-vidasalud-kafka-admin
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  kafka:
+    # Puertos EXTERNAL de los brokers definidos en infra/kafka/compose.yml.
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092,localhost:29093,localhost:29094}
+    admin:
+      fail-fast: false
+
+vidasalud:
+  kafka:
+    initialize-default-topics: ${KAFKA_INIT_DEFAULT_TOPICS:true}
+    topics:
+      - name: appointments.events
+        partitions: 3
+        replication-factor: 3
+        cleanup-policy: delete
+        retention-ms: 604800000
+        min-insync-replicas: 2
+      - name: audit.timeline
+        partitions: 3
+        replication-factor: 3
+        cleanup-policy: "compact,delete"
+        retention-ms: 2592000000
+        min-insync-replicas: 2
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

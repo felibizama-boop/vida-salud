@@ -1,0 +1,24 @@
+# =============================================================================
+#  VidaSalud - Infraestructura Kafka
+# =============================================================================
+
+# Variables de entorno locales (nunca versionar credenciales reales)
+.env
+*.env
+.env.*
+
+# Datos de brokers y zookeeper con bind mount local
+data/
+volumes/
+kafka-data/
+zookeeper-data/
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

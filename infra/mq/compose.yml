@@ -1,0 +1,137 @@
+# =============================================================================
+#  VidaSalud - Clúster RabbitMQ de 2 nodos con Management UI habilitada
+#  EP5 / DSY1107 - Desarrollo Cloud Native I
+# -----------------------------------------------------------------------------
+#  Nodos:      rabbitmq1 (nodo base) + rabbitmq2 (se une al clúster)
+#  Imagen:     rabbitmq:3.13-management (plugin de administración incluido)
+#  Puertos host:
+#     5672  -> AMQP      nodo 1        5673  -> AMQP      nodo 2
+#     15672 -> UI admin  nodo 1        15673 -> UI admin  nodo 2
+#
+#  Uso:
+#     docker compose -f infra/mq/compose.yml up -d
+#     docker compose -f infra/mq/compose.yml ps
+#     docker compose -f infra/mq/compose.yml down        (conserva volúmenes)
+#     docker compose -f infra/mq/compose.yml down -v     (borra datos)
+#
+#  Credenciales por defecto (editables vía variables de entorno del host):
+#     usuario: vidasalud      contraseña: vidasalud
+#
+#  Notas de implementación:
+#   - Se conserva el entrypoint oficial (docker-entrypoint.sh): es el responsable
+#     de escribir el .erlang.cookie a partir de RABBITMQ_ERLANG_COOKIE y de crear
+#     el usuario administrador (RABBITMQ_DEFAULT_USER/PASS).
+#   - El nodo 2 arranca el servidor en segundo plano, se une al clúster mediante
+#     'rabbitmqctl join_cluster' y finalmente queda en primer plano.
+# =============================================================================
+
+name: vidasalud-mq
+
+# -----------------------------------------------------------------------------
+#  Valores comunes a ambos nodos (cookie compartida + usuario administrador)
+# -----------------------------------------------------------------------------
+x-rabbitmq-common: &rabbitmq-common
+  image: rabbitmq:3.13-management
+  restart: unless-stopped
+  environment: &rabbitmq-env
+    # Cookie compartida: requisito indispensable para que los nodos Erlang se
+    # reconozcan entre sí dentro del mismo clúster.
+    RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-vidasalud_cluster_cookie}
+    # Usuario administrador accesible desde fuera del contenedor
+    # (el usuario 'guest' solo puede autenticarse desde localhost).
+    RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-vidasalud}
+    RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-vidasalud}
+  healthcheck:
+    test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+    interval: 10s
+    timeout: 10s
+    retries: 12
+    start_period: 60s
+  networks:
+    - vidasalud-net
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Nodo 1: nodo base del clúster.
+  # ---------------------------------------------------------------------------
+  rabbitmq1:
+    <<: *rabbitmq-common
+    container_name: vidasalud-rabbitmq1
+    hostname: rabbitmq1
+    environment:
+      <<: *rabbitmq-env
+      RABBITMQ_NODENAME: rabbit@rabbitmq1
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management UI
+      - "25672:25672"    # Comunicación inter-nodo (Erlang Distribution)
+    volumes:
+      - rabbitmq1-data:/var/lib/rabbitmq
+
+  # ---------------------------------------------------------------------------
+  # Nodo 2: arranca como nodo independiente (servidor en primer plano, entrypoint
+  # oficial) y luego es incorporado al clúster por el servicio de inicialización.
+  # ---------------------------------------------------------------------------
+  rabbitmq2:
+    <<: *rabbitmq-common
+    container_name: vidasalud-rabbitmq2
+    hostname: rabbitmq2
+    environment:
+      <<: *rabbitmq-env
+      RABBITMQ_NODENAME: rabbit@rabbitmq2
+    ports:
+      - "5673:5672"      # AMQP
+      - "15673:15672"    # Management UI
+    volumes:
+      - rabbitmq2-data:/var/lib/rabbitmq
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Inicializador del clúster: espera a que ambos nodos estén sanos y ejecuta
+  # 'join_cluster' de forma remota (rabbitmqctl -n). Se ejecuta una sola vez.
+  # ---------------------------------------------------------------------------
+  rabbitmq-cluster-init:
+    image: rabbitmq:3.13-management
+    container_name: vidasalud-rabbitmq-init
+    hostname: rabbitmq-init
+    restart: "no"
+    environment:
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE:-vidasalud_cluster_cookie}
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
+      rabbitmq2:
+        condition: service_healthy
+    networks:
+      - vidasalud-net
+    # Se conserva el entrypoint oficial (escribe el .erlang.cookie necesario para
+    # que rabbitmqctl pueda autenticarse contra los nodos remotos).
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        echo "[init] Uniendo rabbit@rabbitmq2 al clúster rabbit@rabbitmq1..."
+        rabbitmqctl -n rabbit@rabbitmq2 stop_app || true
+        rabbitmqctl -n rabbit@rabbitmq2 join_cluster rabbit@rabbitmq1 || true
+        rabbitmqctl -n rabbit@rabbitmq2 start_app
+
+        echo "[init] Estado del clúster:"
+        rabbitmqctl -n rabbit@rabbitmq1 cluster_status
+        echo "[init] Clúster configurado correctamente."
+
+volumes:
+  rabbitmq1-data:
+    name: vidasalud-rabbitmq1-data
+  rabbitmq2-data:
+    name: vidasalud-rabbitmq2-data
+
+networks:
+  # Red común de todo el sistema VidaSalud. Los otros compose
+  # (kafka y apps) se conectan a esta misma red por nombre.
+  vidasalud-net:
+    name: vidasalud-net
+    driver: bridge

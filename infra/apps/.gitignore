@@ -1,0 +1,18 @@
+# =============================================================================
+#  VidaSalud - Capa de aplicación (microservicios + frontend)
+# =============================================================================
+
+# Variables de entorno locales (credenciales, URLs de despliegue)
+.env
+*.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Sistema operativo / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

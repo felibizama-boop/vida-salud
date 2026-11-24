@@ -19,13 +19,20 @@ public class DocumentoListener {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentoListener.class);
 
+    /** Marcador del payload que fuerza un fallo para demostrar el enrutamiento a la DLQ. */
+    private static final String SIMULATE_FAILURE_MARKER = "\"simulateFailure\":true";
+
     @RabbitListener(queues = "${vidasalud.rabbitmq.queues.documentos.name}")
     public void procesarMensaje(Message message, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
         log.info("[DocumentoListener] Mensaje recibido. Tag: {}", tag);
         try {
             String content = new String(message.getBody());
             log.info("[DocumentoListener] Procesando Documento: {}", content);
-            
+
+            if (content.contains(SIMULATE_FAILURE_MARKER)) {
+                throw new IllegalStateException("Fallo simulado solicitado por el payload");
+            }
+
             channel.basicAck(tag, false);
             log.info("[DocumentoListener] ACK enviado para Tag: {}", tag);
         } catch (Exception e) {

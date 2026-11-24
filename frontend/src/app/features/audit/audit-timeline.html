@@ -1,0 +1,83 @@
+<section class="card">
+  <header>
+    <div>
+      <h3 class="card-title">Timeline de auditoría</h3>
+      <p class="card-subtitle">
+        {{ entradas().length }} de {{ total() }} eventos · publicados en el tópico
+        <span class="mono">audit.timeline</span>
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="limpiar()">Limpiar filtros</button>
+  </header>
+
+  <div class="filters mb-1">
+    <div class="field">
+      <label for="au-texto">Buscar</label>
+      <input
+        id="au-texto"
+        [value]="filtro().texto"
+        (input)="cambiarTexto($any($event.target).value)"
+        placeholder="Entidad, acción, usuario…"
+      />
+    </div>
+
+    <div class="field">
+      <label for="au-entidad">Entidad</label>
+      <select id="au-entidad" [value]="filtro().entityType" (change)="cambiarEntidad($any($event.target).value)">
+        <option value="">Todas</option>
+        @for (entidad of entidades(); track entidad) {
+          <option [value]="entidad">{{ entidad }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="au-accion">Acción</label>
+      <select id="au-accion" [value]="filtro().action" (change)="cambiarAccion($any($event.target).value)">
+        <option value="">Todas</option>
+        @for (accion of acciones(); track accion) {
+          <option [value]="accion">{{ accion }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="au-desde">Desde</label>
+      <input id="au-desde" type="date" [value]="filtro().desde" (change)="cambiarDesde($any($event.target).value)" />
+    </div>
+
+    <div class="field">
+      <label for="au-hasta">Hasta</label>
+      <input id="au-hasta" type="date" [value]="filtro().hasta" (change)="cambiarHasta($any($event.target).value)" />
+    </div>
+  </div>
+
+  @if (entradas().length > 0) {
+    <ul class="timeline">
+      @for (entry of entradas(); track entry.id) {
+        <li>
+          <div class="timeline-head">
+            <span class="timeline-action">{{ entry.action }}</span>
+            <span class="tag">{{ entry.entityType }}</span>
+            <span class="mono muted">{{ entry.entityId }}</span>
+            <span
+              class="badge"
+              [class.badge-origin-frontend]="entry.origin === 'FRONTEND'"
+              [class.badge-origin-kafka]="entry.origin === 'KAFKA'"
+            >
+              {{ entry.origin }}
+            </span>
+          </div>
+          <div class="timeline-meta">
+            {{ fechaHora(entry.occurredAt) }} · por {{ entry.performedBy }}
+          </div>
+          @if (entry.details) {
+            <div class="timeline-meta">{{ entry.details }}</div>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty">No hay eventos de auditoría que coincidan con los filtros.</p>
+  }
+</section>

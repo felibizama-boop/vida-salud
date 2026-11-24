@@ -1,0 +1,6 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: "https://login.microsoftonline.com/6ba162ab-7029-42ae-9da1-7d41f345ef4c/v2.0"

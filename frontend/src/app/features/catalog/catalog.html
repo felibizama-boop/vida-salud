@@ -1,0 +1,316 @@
+<section class="grid grid-4">
+  <article class="kpi">
+    <p class="kpi-label">Prestaciones activas</p>
+    <p class="kpi-value">{{ prestacionesActivas() }}</p>
+    <p class="kpi-hint">de {{ prestaciones().length }} en el catálogo</p>
+  </article>
+  <article class="kpi">
+    <p class="kpi-label">Boxes operativos</p>
+    <p class="kpi-value">{{ boxesActivos() }}</p>
+    <p class="kpi-hint">de {{ boxes().length }} registrados</p>
+  </article>
+  <article class="kpi">
+    <p class="kpi-label">Cupos disponibles</p>
+    <p class="kpi-value">{{ cuposDisponibles() }}</p>
+    <p class="kpi-hint">en {{ cupos().length }} bloques de agenda</p>
+  </article>
+  <article class="kpi">
+    <p class="kpi-label">Precio promedio</p>
+    <p class="kpi-value">{{ clp(precioPromedio()) }}</p>
+    <p class="kpi-hint">prestaciones activas</p>
+  </article>
+</section>
+
+<section class="card">
+  <header>
+    <div>
+      <h3 class="card-title">Catálogo clínico</h3>
+      <p class="card-subtitle">Gestión de prestaciones, boxes y cupos</p>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button type="button" [class.active]="pestana() === 'prestaciones'" (click)="cambiarPestana('prestaciones')">
+      Prestaciones
+    </button>
+    <button type="button" [class.active]="pestana() === 'boxes'" (click)="cambiarPestana('boxes')">
+      Boxes
+    </button>
+    <button type="button" [class.active]="pestana() === 'cupos'" (click)="cambiarPestana('cupos')">
+      Cupos
+    </button>
+  </div>
+
+  @if (mensaje()) {
+    <p class="tag mb-1">{{ mensaje() }}</p>
+  }
+
+  @switch (pestana()) {
+    @case ('prestaciones') {
+      @if (puedeEditar()) {
+        <form [formGroup]="formPrestacion" (ngSubmit)="crearPrestacion()" class="stack mb-1">
+          <div class="form-grid">
+            <div class="field">
+              <label for="pr-nombre">Nombre</label>
+              <input id="pr-nombre" formControlName="nombre" placeholder="Consulta Nutricional" />
+            </div>
+            <div class="field">
+              <label for="pr-categoria">Categoría</label>
+              <select id="pr-categoria" formControlName="categoria">
+                @for (categoria of categorias; track categoria) {
+                  <option [value]="categoria">{{ categoria }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="pr-duracion">Duración (min)</label>
+              <input id="pr-duracion" type="number" formControlName="duracionMin" min="5" />
+            </div>
+            <div class="field">
+              <label for="pr-precio">Precio (CLP)</label>
+              <input id="pr-precio" type="number" formControlName="precio" min="0" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Agregar prestación</button>
+          </div>
+        </form>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Prestación</th>
+              <th>Categoría</th>
+              <th>Duración</th>
+              <th>Precio</th>
+              <th>Estado</th>
+              @if (puedeEditar()) {
+                <th>Acciones</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (prestacion of prestaciones(); track prestacion.id) {
+              <tr>
+                <td class="mono">{{ prestacion.id }}</td>
+                <td>{{ prestacion.nombre }}</td>
+                <td>{{ prestacion.categoria }}</td>
+                <td>{{ prestacion.duracionMin }} min</td>
+                <td>
+                  @if (puedeEditar()) {
+                    <input
+                      type="number"
+                      min="0"
+                      [value]="prestacion.precio"
+                      (change)="actualizarPrecio(prestacion.id, $any($event.target).valueAsNumber)"
+                    />
+                  } @else {
+                    {{ clp(prestacion.precio) }}
+                  }
+                </td>
+                <td>
+                  <span class="badge" [class.badge-en_atencion]="prestacion.activa" [class.badge-cancelada]="!prestacion.activa">
+                    {{ prestacion.activa ? 'Activa' : 'Inactiva' }}
+                  </span>
+                </td>
+                @if (puedeEditar()) {
+                  <td>
+                    <div class="btn-row">
+                      <button type="button" class="btn btn-sm btn-ghost" (click)="alternarPrestacion(prestacion.id)">
+                        {{ prestacion.activa ? 'Desactivar' : 'Activar' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-danger"
+                        (click)="eliminarPrestacion(prestacion.id, prestacion.nombre)"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('boxes') {
+      @if (puedeEditar()) {
+        <form [formGroup]="formBox" (ngSubmit)="crearBox()" class="stack mb-1">
+          <div class="form-grid">
+            <div class="field">
+              <label for="bx-nombre">Nombre</label>
+              <input id="bx-nombre" formControlName="nombre" placeholder="Box 7" />
+            </div>
+            <div class="field">
+              <label for="bx-ubicacion">Ubicación</label>
+              <input id="bx-ubicacion" formControlName="ubicacion" placeholder="Piso 2 - Ala Norte" />
+            </div>
+            <div class="field">
+              <label for="bx-tipo">Tipo</label>
+              <select id="bx-tipo" formControlName="tipo">
+                @for (tipo of tiposBox; track tipo) {
+                  <option [value]="tipo">{{ tipo }}</option>
+                }
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Agregar box</button>
+          </div>
+        </form>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Box</th>
+              <th>Ubicación</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              @if (puedeEditar()) {
+                <th>Acciones</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (box of boxes(); track box.id) {
+              <tr>
+                <td class="mono">{{ box.id }}</td>
+                <td>{{ box.nombre }}</td>
+                <td>{{ box.ubicacion }}</td>
+                <td>{{ box.tipo }}</td>
+                <td>
+                  <span class="badge" [class.badge-en_atencion]="box.activo" [class.badge-cancelada]="!box.activo">
+                    {{ box.activo ? 'Operativo' : 'Fuera de servicio' }}
+                  </span>
+                </td>
+                @if (puedeEditar()) {
+                  <td>
+                    <div class="btn-row">
+                      <button type="button" class="btn btn-sm btn-ghost" (click)="alternarBox(box.id)">
+                        {{ box.activo ? 'Deshabilitar' : 'Habilitar' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-danger"
+                        (click)="eliminarBox(box.id, box.nombre)"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @case ('cupos') {
+      @if (puedeEditar()) {
+        <form [formGroup]="formCupo" (ngSubmit)="crearCupo()" class="stack mb-1">
+          <div class="form-grid">
+            <div class="field">
+              <label for="cu-prestacion">Prestación</label>
+              <select id="cu-prestacion" formControlName="prestacionId">
+                <option value="">Selecciona una prestación</option>
+                @for (prestacion of prestaciones(); track prestacion.id) {
+                  <option [value]="prestacion.id">{{ prestacion.nombre }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="cu-profesional">Profesional</label>
+              <select id="cu-profesional" formControlName="profesional">
+                <option value="">Selecciona un profesional</option>
+                @for (profesional of profesionales(); track profesional) {
+                  <option [value]="profesional">{{ profesional }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="cu-dia">Día</label>
+              <select id="cu-dia" formControlName="dia">
+                @for (dia of dias; track dia) {
+                  <option [value]="dia">{{ dia }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label for="cu-hora">Hora</label>
+              <input id="cu-hora" type="time" formControlName="hora" />
+            </div>
+            <div class="field">
+              <label for="cu-capacidad">Capacidad</label>
+              <input id="cu-capacidad" type="number" formControlName="capacidad" min="1" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Agregar cupo</button>
+          </div>
+        </form>
+      }
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Prestación</th>
+              <th>Profesional</th>
+              <th>Día / Hora</th>
+              <th>Ocupación</th>
+              @if (puedeEditar()) {
+                <th>Acciones</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (cupo of cupos(); track cupo.id) {
+              <tr>
+                <td class="mono">{{ cupo.id }}</td>
+                <td>{{ nombrePrestacion(cupo.prestacionId) }}</td>
+                <td>{{ cupo.profesional }}</td>
+                <td>{{ cupo.dia }} · {{ cupo.hora }}</td>
+                <td>
+                  <div class="row-between">
+                    <span class="muted">{{ cupo.reservados }}/{{ cupo.capacidad }}</span>
+                    <div class="progress">
+                      <span [style.width.%]="ocupacion(cupo.capacidad, cupo.reservados)"></span>
+                    </div>
+                  </div>
+                </td>
+                @if (puedeEditar()) {
+                  <td>
+                    <div class="btn-row">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-primary"
+                        [disabled]="cupo.reservados >= cupo.capacidad"
+                        (click)="reservarCupo(cupo.id)"
+                      >
+                        Reservar
+                      </button>
+                      <button type="button" class="btn btn-sm btn-danger" (click)="eliminarCupo(cupo.id)">
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

@@ -1,0 +1,265 @@
+<section class="card">
+  <header>
+    <div>
+      <h3 class="card-title">Atenciones</h3>
+      <p class="card-subtitle">
+        {{ total() }} atenciones registradas · cada cambio de estado publica un evento en Kafka
+      </p>
+    </div>
+    @if (puedeSolicitar()) {
+      <button type="button" class="btn btn-primary" (click)="alternarFormulario()">
+        {{ mostrarFormulario() ? 'Cerrar formulario' : 'Nueva atención' }}
+      </button>
+    }
+  </header>
+
+  @if (mensaje()) {
+    <p class="tag mb-1">{{ mensaje() }}</p>
+  }
+
+  @if (mostrarFormulario()) {
+    <form [formGroup]="form" (ngSubmit)="crear()" class="stack mb-1">
+      <div class="form-grid">
+        <div class="field">
+          <label for="paciente">Paciente</label>
+          <input id="paciente" formControlName="paciente" placeholder="Nombre completo" />
+          @if (form.controls.paciente.touched && form.controls.paciente.invalid) {
+            <span class="field-error">El paciente es obligatorio.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="rut">RUT</label>
+          <input id="rut" formControlName="rut" placeholder="21.345.123-4" />
+          @if (form.controls.rut.touched && form.controls.rut.invalid) {
+            @if (form.controls.rut.hasError('rutFormato')) {
+              <span class="field-error">Formato inválido. Usa puntos y guion (ej: 21.345.123-4).</span>
+            } @else {
+              <span class="field-error">El RUT es obligatorio.</span>
+            }
+          }
+        </div>
+
+        <div class="field">
+          <label for="especialidad">Especialidad</label>
+          <input id="especialidad" formControlName="especialidad" placeholder="Medicina General" />
+          @if (form.controls.especialidad.touched && form.controls.especialidad.invalid) {
+            <span class="field-error">La especialidad es obligatoria.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="prestacionId">Prestación</label>
+          <select id="prestacionId" formControlName="prestacionId">
+            <option value="">Selecciona una prestación</option>
+            @for (prestacion of prestaciones(); track prestacion.id) {
+              <option [value]="prestacion.id">{{ prestacion.nombre }}</option>
+            }
+          </select>
+          @if (form.controls.prestacionId.touched && form.controls.prestacionId.invalid) {
+            <span class="field-error">Debes seleccionar una prestación.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="profesional">Profesional</label>
+          <select id="profesional" formControlName="profesional">
+            <option value="">Selecciona un profesional</option>
+            @for (profesional of profesionales(); track profesional) {
+              <option [value]="profesional">{{ profesional }}</option>
+            }
+          </select>
+          @if (form.controls.profesional.touched && form.controls.profesional.invalid) {
+            <span class="field-error">Debes seleccionar un profesional.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="box">Box</label>
+          <select id="box" formControlName="box">
+            <option value="">Selecciona un box</option>
+            @for (box of boxes(); track box.id) {
+              <option [value]="box.nombre">{{ box.nombre }}</option>
+            }
+          </select>
+          @if (form.controls.box.touched && form.controls.box.invalid) {
+            <span class="field-error">Debes seleccionar un box.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label for="fecha">Fecha y hora</label>
+          <input id="fecha" type="datetime-local" formControlName="fecha" [min]="fechaMinima()" />
+          @if (form.controls.fecha.touched && form.controls.fecha.invalid) {
+            @if (form.controls.fecha.hasError('fechaPasada')) {
+              <span class="field-error">La fecha y hora debe ser posterior al momento actual.</span>
+            } @else if (form.controls.fecha.hasError('fechaInvalida')) {
+              <span class="field-error">La fecha ingresada no es válida.</span>
+            } @else {
+              <span class="field-error">La fecha es obligatoria.</span>
+            }
+          }
+        </div>
+
+        <div class="field">
+          <label for="prioridad">Prioridad</label>
+          <select id="prioridad" formControlName="prioridad">
+            @for (prioridad of prioridades; track prioridad) {
+              <option [value]="prioridad">{{ prioridad }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="observaciones">Observaciones</label>
+          <input id="observaciones" formControlName="observaciones" placeholder="Opcional" />
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary">Crear atención</button>
+        <button type="button" class="btn btn-ghost" (click)="alternarFormulario()">Cancelar</button>
+      </div>
+    </form>
+  }
+
+  <div class="filters mb-1">
+    <div class="field">
+      <label for="filtroEstado">Estado</label>
+      <select id="filtroEstado" [value]="filtroEstado()" (change)="cambiarFiltroEstado($any($event.target).value)">
+        <option value="">Todos</option>
+        @for (estado of estados; track estado) {
+          <option [value]="estado">
+            {{ estadoLabels[estado] }} ({{ porEstado()[estado] }})
+          </option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="filtroTexto">Buscar</label>
+      <input
+        id="filtroTexto"
+        [value]="filtroTexto()"
+        (input)="cambiarFiltroTexto($any($event.target).value)"
+        placeholder="ID, paciente, RUT, profesional…"
+      />
+    </div>
+  </div>
+
+  @if (atenciones().length > 0) {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Paciente</th>
+            <th>Prestación / Especialidad</th>
+            <th>Profesional</th>
+            <th>Box</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Prioridad</th>
+            @if (roleService.currentRole() !== 'AUDITOR') {
+              <th>Acciones</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (atencion of atenciones(); track atencion.id) {
+            <tr>
+              <td class="mono">{{ atencion.id }}</td>
+              <td>
+                {{ atencion.paciente }}
+                <div class="muted mono">{{ atencion.rut }}</div>
+              </td>
+              <td>
+                {{ etiquetaPrestacion(atencion.prestacionId) }}
+                <div class="muted">{{ atencion.especialidad }}</div>
+              </td>
+              <td>{{ atencion.profesional }}</td>
+              <td>{{ atencion.box }}</td>
+              <td>{{ fechaHora(atencion.fecha) }}</td>
+              <td>
+                <span [class]="'badge ' + estadoClase(atencion.estado)">
+                  {{ estadoLabels[atencion.estado] }}
+                </span>
+              </td>
+              <td>
+                <span [class]="'badge ' + prioridadClase(atencion.prioridad)">
+                  {{ atencion.prioridad }}
+                </span>
+              </td>
+              @if (roleService.currentRole() !== 'AUDITOR') {
+                <td>
+                  <div class="btn-row">
+                    @for (siguiente of transicionesPermitidas(atencion); track siguiente) {
+                      <button
+                        type="button"
+                        class="btn btn-sm"
+                        [class.btn-danger]="siguiente === 'CANCELADA'"
+                        [class.btn-primary]="siguiente !== 'CANCELADA'"
+                        (click)="cambiarEstado(atencion.id, siguiente)"
+                      >
+                        {{ estadoLabels[siguiente] }}
+                      </button>
+                    }
+                    @if (roleService.currentRole() !== 'PACIENTE') {
+                      <button type="button" class="btn btn-sm btn-ghost" (click)="notificar(atencion.id)">
+                        Notificar
+                      </button>
+                    }
+                    @if (puedeEliminar()) {
+                      <button type="button" class="btn btn-sm btn-danger" (click)="eliminar(atencion.id)">
+                        Eliminar
+                      </button>
+                    }
+                    @if (sinAcciones(atencion)) {
+                      <span class="muted">Solo lectura</span>
+                    }
+                  </div>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <p class="empty">No hay atenciones que coincidan con los filtros.</p>
+  }
+</section>
+
+<section class="card">
+  <header>
+    <div>
+      <h3 class="card-title">Bitácora de integración con el backend</h3>
+      <p class="card-subtitle">Eventos de cita (Kafka) y notificaciones (RabbitMQ) disparados</p>
+    </div>
+    @if (bitacora().length > 0) {
+      <button type="button" class="btn btn-ghost btn-sm" (click)="limpiarBitacora()">Limpiar</button>
+    }
+  </header>
+
+  @if (bitacora().length > 0) {
+    <ul class="bitacora">
+      @for (item of bitacora(); track item.id) {
+        <li>
+          <span
+            class="dot"
+            [class.dot-ok]="item.estado === 'OK'"
+            [class.dot-error]="item.estado === 'ERROR'"
+            [class.dot-enviando]="item.estado === 'ENVIANDO'"
+          ></span>
+          <strong>{{ item.etiqueta }}</strong>
+          <span class="mono muted">{{ item.endpoint }}</span>
+          <span class="muted">{{ item.detalle }}</span>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="empty">
+      Aún no se han disparado llamadas. Crea una atención o cambia un estado para ver la integración.
+    </p>
+  }
+</section>

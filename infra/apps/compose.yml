@@ -1,0 +1,132 @@
+# =============================================================================
+#  VidaSalud - Microservicios Spring Boot + Frontend Angular (red común)
+#  EP5 / DSY1107 - Desarrollo Cloud Native I
+# -----------------------------------------------------------------------------
+#  Este compose levanta la capa de aplicación sobre la MISMA red Docker que
+#  utilizan los compose de infraestructura (infra/mq y infra/kafka).
+#
+#  Orden de arranque recomendado:
+#     1) docker compose -f infra/mq/compose.yml up -d
+#     2) docker compose -f infra/kafka/compose.yml up -d
+#     3) docker compose -f infra/apps/compose.yml up -d --build
+#
+#  URL de acceso:
+#     Frontend Angular              -> http://localhost:4200
+#     MS de negocio (core)          -> http://localhost:8080 (protegido por JWT)
+#     MS Rabbit admin (colas)       -> http://localhost:8091/api/v1/rabbit/queues
+#     MS Kafka admin  (tópicos)     -> http://localhost:8092/api/v1/admin/kafka/topics
+#
+#  Perfiles de seguridad (variable SPRING_PROFILES_ACTIVE):
+#     azure -> valida el JWT de Azure Entra ID (comportamiento por defecto).
+#     local -> sin autenticación (cómodo para pruebas rápidas / trabajar offline).
+#
+#  Notas:
+#   - Los microservicios NO modifican la autenticación existente: validan el
+#     mismo JWT de Azure Entra ID mediante el emisor (issuer-uri) compartido.
+#   - Los nombres de host (vidasalud-rabbitmq1, kafka1..3) resuelven gracias a
+#     la red vidasalud-net declarada en los compose de infraestructura.
+# =============================================================================
+
+name: vidasalud-apps
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Microservicio de negocio: expone la API REST y contiene los productores y
+  # consumidores de RabbitMQ (con DLQ) y de Kafka (con reintentos + DLT).
+  # ---------------------------------------------------------------------------
+  ms-vidasalud-core:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: vidasalud/ms-vidasalud-core:latest
+    container_name: vidasalud-ms-core
+    hostname: ms-core
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: "8080"
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-vidasalud-rabbitmq1}
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-vidasalud}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:9092,kafka2:9092,kafka3:9092}
+      KAFKA_LISTENER_CONCURRENCY: "3"
+    depends_on:
+      - ms-vidasalud-rabbit-admin
+      - ms-vidasalud-kafka-admin
+    networks:
+      - vidasalud-net
+
+  # ---------------------------------------------------------------------------
+  # Microservicio administrador de RabbitMQ (colas, exchanges y bindings)
+  # ---------------------------------------------------------------------------
+  ms-vidasalud-rabbit-admin:
+    build:
+      context: ../../microservices/ms-vidasalud-rabbit-admin
+      dockerfile: Dockerfile
+    image: vidasalud/ms-vidasalud-rabbit-admin:latest
+    container_name: vidasalud-ms-rabbit-admin
+    hostname: ms-rabbit-admin
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-azure}
+      SERVER_PORT: "8091"
+      RABBITMQ_HOST: ${RABBITMQ_HOST:-vidasalud-rabbitmq1}
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-vidasalud}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-vidasalud}
+      RABBITMQ_MANAGEMENT_URL: ${RABBITMQ_MANAGEMENT_URL:-http://vidasalud-rabbitmq1:15672}
+    networks:
+      - vidasalud-net
+
+  # ---------------------------------------------------------------------------
+  # Microservicio administrador de Kafka (tópicos y consumer groups)
+  # ---------------------------------------------------------------------------
+  ms-vidasalud-kafka-admin:
+    build:
+      context: ../../microservices/ms-vidasalud-kafka-admin
+      dockerfile: Dockerfile
+    image: vidasalud/ms-vidasalud-kafka-admin:latest
+    container_name: vidasalud-ms-kafka-admin
+    hostname: ms-kafka-admin
+    restart: unless-stopped
+    ports:
+      - "8092:8092"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-azure}
+      SERVER_PORT: "8092"
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:9092,kafka2:9092,kafka3:9092}
+      KAFKA_INIT_DEFAULT_TOPICS: ${KAFKA_INIT_DEFAULT_TOPICS:-true}
+    networks:
+      - vidasalud-net
+
+  # ---------------------------------------------------------------------------
+  # Frontend Angular (compilado y servido por Nginx)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    image: vidasalud/frontend:latest
+    container_name: vidasalud-frontend
+    hostname: frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - ms-vidasalud-core
+      - ms-vidasalud-rabbit-admin
+      - ms-vidasalud-kafka-admin
+    networks:
+      - vidasalud-net
+
+networks:
+  # Red compartida con infra/mq/compose.yml e infra/kafka/compose.yml.
+  # Si se ejecuta este compose de forma aislada, Docker la crea automáticamente.
+  vidasalud-net:
+    name: vidasalud-net
+    driver: bridge

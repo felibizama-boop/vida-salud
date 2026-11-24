@@ -1,18 +1,67 @@
-<header class="app-header">
-  <h1>{{ title() }}</h1>
-
-  <div class="app-auth">
-    @if (!ready()) {
-      <span>Inicializando autenticación...</span>
-    } @else if (isAuthenticated()) {
-      <span>Hola, {{ userName() }}</span>
-      <button type="button" (click)="logout()">Cerrar sesión</button>
-    } @else {
-      <button type="button" (click)="login()">Iniciar sesión</button>
-    }
+@if (!ready()) {
+  <div class="app-splash">
+    <p>Inicializando autenticación segura…</p>
   </div>
-</header>
+} @else if (!isAuthenticated()) {
+  <div class="app-login">
+    <div class="login-card">
+      <h1 class="brand">Vida<span>Salud</span></h1>
+      <p>Plataforma de gestión de atenciones ambulatorias. Accede con tu cuenta institucional.</p>
+      <button type="button" class="btn btn-primary" (click)="login()">
+        Iniciar sesión con Microsoft
+      </button>
+    </div>
+  </div>
+} @else {
+  <div class="app-shell">
+    <aside class="sidebar">
+      <h1 class="brand">Vida<span>Salud</span></h1>
 
-<main>
-  <router-outlet />
-</main>
+      <nav class="nav">
+        @for (item of navVisible(); track item.path) {
+          <a
+            [routerLink]="item.path"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: false }"
+          >
+            <span class="nav-icon">{{ item.icon }}</span>
+            {{ item.label }}
+          </a>
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="tag">{{ roleLabels[roleService.currentRole()] }}</span>
+        <p class="mt-1">Sesión iniciada como {{ userName() ?? 'usuario' }}</p>
+      </div>
+    </aside>
+
+    <div class="app-body">
+      <header class="topbar">
+        <h2>{{ title() }} · Gestión clínica</h2>
+
+        <div class="auth-area">
+          <label for="rol-demo" class="muted">Rol:</label>
+          <select
+            id="rol-demo"
+            [value]="roleService.currentRole()"
+            (change)="cambiarRol($event)"
+            title="Selector de rol de demostración"
+          >
+            @for (rol of roles; track rol) {
+              <option [value]="rol">{{ roleLabels[rol] }}</option>
+            }
+          </select>
+
+          <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">
+            Cerrar sesión
+          </button>
+        </div>
+      </header>
+
+      <main class="content">
+        <router-outlet />
+      </main>
+    </div>
+  </div>
+}

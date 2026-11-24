@@ -19,6 +19,9 @@ public class NotificacionListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificacionListener.class);
 
+    /** Marcador del payload que fuerza un fallo para demostrar el enrutamiento a la DLQ. */
+    private static final String SIMULATE_FAILURE_MARKER = "\"simulateFailure\":true";
+
     @RabbitListener(queues = "${vidasalud.rabbitmq.queues.notificaciones.name}")
     public void procesarMensaje(Message message, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
         log.info("[NotificacionListener] Mensaje recibido. Tag: {}", tag);
@@ -26,7 +29,11 @@ public class NotificacionListener {
             // Simulación de procesamiento
             String content = new String(message.getBody());
             log.info("[NotificacionListener] Procesando: {}", content);
-            
+
+            if (content.contains(SIMULATE_FAILURE_MARKER)) {
+                throw new IllegalStateException("Fallo simulado solicitado por el payload");
+            }
+
             // Éxito -> ACK
             channel.basicAck(tag, false);
             log.info("[NotificacionListener] ACK enviado para Tag: {}", tag);

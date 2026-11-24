@@ -1,0 +1,93 @@
+<section class="card">
+  <div class="row-between">
+    <div>
+      <h3 class="card-title">Bienvenido a VidaSalud</h3>
+      <p class="card-subtitle">
+        Sesión con rol <strong>{{ roleLabels[roleService.currentRole()] }}</strong> —
+        {{ roleDescriptions[roleService.currentRole()] }}
+      </p>
+    </div>
+    <span class="tag">Dashboard</span>
+  </div>
+</section>
+
+<section class="grid grid-4">
+  <article class="kpi">
+    <p class="kpi-label">Atenciones totales</p>
+    <p class="kpi-value">{{ kpi().total }}</p>
+    <p class="kpi-hint">{{ kpi().enCurso }} en curso ahora</p>
+  </article>
+
+  <article class="kpi">
+    <p class="kpi-label">Tiempo de espera promedio</p>
+    <p class="kpi-value">{{ kpi().esperaPromedioMin }} <small>min</small></p>
+    <p class="kpi-hint">Desde EN_ESPERA a EN_ATENCIÓN</p>
+  </article>
+
+  <article class="kpi">
+    <p class="kpi-label">Atendidas</p>
+    <p class="kpi-value">{{ kpi().cerradas }}</p>
+    <p class="kpi-hint">{{ kpi().canceladas }} canceladas ({{ kpi().tasaCancelacion }}%)</p>
+  </article>
+
+  <article class="kpi">
+    <p class="kpi-label">Catálogo activo</p>
+    <p class="kpi-value">{{ prestacionesActivas() }}</p>
+    <p class="kpi-hint">{{ boxesActivos() }} boxes operativos</p>
+  </article>
+</section>
+
+<section class="grid grid-2">
+  <article class="card">
+    <header>
+      <div>
+        <h3 class="card-title">Accesos rápidos</h3>
+        <p class="card-subtitle">Disponibles según tu rol</p>
+      </div>
+    </header>
+
+    <div class="stack">
+      @for (acceso of accesos(); track acceso.path) {
+        <a class="acceso" [routerLink]="acceso.path">
+          <strong>{{ acceso.label }}</strong>
+          <span class="muted">{{ acceso.descripcion }}</span>
+        </a>
+      } @empty {
+        <p class="empty">Tu rol no tiene accesos directos configurados.</p>
+      }
+    </div>
+  </article>
+
+  <article class="card">
+    <header>
+      <div>
+        <h3 class="card-title">Actividad reciente de auditoría</h3>
+        <p class="card-subtitle">Últimos eventos registrados</p>
+      </div>
+    </header>
+
+    @if (auditoriaReciente().length > 0) {
+      <ul class="timeline">
+        @for (entry of auditoriaReciente(); track entry.id) {
+          <li>
+            <div class="timeline-head">
+              <span class="timeline-action">{{ entry.action }}</span>
+              <span
+                class="badge"
+                [class.badge-origin-frontend]="entry.origin === 'FRONTEND'"
+                [class.badge-origin-kafka]="entry.origin === 'KAFKA'"
+              >
+                {{ entry.origin }}
+              </span>
+            </div>
+            <div class="timeline-meta">
+              {{ entry.entityType }} · {{ entry.entityId }} · {{ fechaHora(entry.occurredAt) }}
+            </div>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="empty">Sin eventos registrados todavía.</p>
+    }
+  </article>
+</section>

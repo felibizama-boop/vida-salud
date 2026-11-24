@@ -1,0 +1,134 @@
+<section class="grid grid-4">
+  <article class="kpi">
+    <p class="kpi-label">Atenciones</p>
+    <p class="kpi-value">{{ resumen().total }}</p>
+    <p class="kpi-hint">{{ resumen().enCurso }} en curso</p>
+  </article>
+  <article class="kpi">
+    <p class="kpi-label">Tiempo de espera promedio</p>
+    <p class="kpi-value">{{ resumen().esperaPromedioMin }} <small>min</small></p>
+    <p class="kpi-hint">EN_ESPERA → EN_ATENCIÓN</p>
+  </article>
+  <article class="kpi">
+    <p class="kpi-label">Tasa de cancelación</p>
+    <p class="kpi-value">{{ resumen().tasaCancelacion }}<small>%</small></p>
+    <p class="kpi-hint">{{ resumen().canceladas }} atenciones canceladas</p>
+  </article>
+  <article class="kpi">
+    <p class="kpi-label">Precio promedio</p>
+    <p class="kpi-value">{{ clp(precioPromedio()) }}</p>
+    <p class="kpi-hint">{{ cuposDisponibles() }} cupos disponibles</p>
+  </article>
+</section>
+
+<section class="grid grid-2">
+  <article class="card">
+    <header>
+      <div>
+        <h3 class="card-title">Atenciones por hora</h3>
+        <p class="card-subtitle">Distribución de la demanda horaria</p>
+      </div>
+    </header>
+
+    @if (resumen().porHora.length > 0) {
+      <div class="bars">
+        @for (item of resumen().porHora; track item.hora) {
+          <div class="bar-row">
+            <span>{{ item.hora }}</span>
+            <div class="bar-track">
+              <div class="bar-fill" [style.width.%]="item.porcentaje"></div>
+            </div>
+            <span class="bar-value">{{ item.total }}</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="empty">Sin datos de demanda horaria.</p>
+    }
+  </article>
+
+  <article class="card">
+    <header>
+      <div>
+        <h3 class="card-title">Atenciones por estado</h3>
+        <p class="card-subtitle">Distribución del ciclo de vida</p>
+      </div>
+    </header>
+
+    <div class="bars">
+      @for (item of resumen().porEstado; track item.nombre) {
+        <div class="bar-row">
+          <span>{{ item.nombre }}</span>
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="porcentaje(item.total, maxEstado())"></div>
+          </div>
+          <span class="bar-value">{{ item.total }}</span>
+        </div>
+      }
+    </div>
+  </article>
+</section>
+
+<section class="grid grid-2">
+  <article class="card">
+    <header>
+      <div>
+        <h3 class="card-title">Prestaciones más demandadas</h3>
+        <p class="card-subtitle">Ranking por cantidad de atenciones</p>
+      </div>
+    </header>
+
+    @if (resumen().prestacionesDemandadas.length > 0) {
+      <div class="bars">
+        @for (item of resumen().prestacionesDemandadas; track item.nombre) {
+          <div class="bar-row">
+            <span>{{ item.nombre }}</span>
+            <div class="bar-track">
+              <div class="bar-fill" [style.width.%]="porcentaje(item.total, maxDemanda())"></div>
+            </div>
+            <span class="bar-value">{{ item.total }}</span>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="empty">Sin prestaciones registradas.</p>
+    }
+  </article>
+
+  <article class="card">
+    <header>
+      <div>
+        <h3 class="card-title">Demanda por especialidad</h3>
+        <p class="card-subtitle">Especialidades con mayor carga</p>
+      </div>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Especialidad</th>
+            <th>Atenciones</th>
+            <th class="text-right">Participación</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of resumen().porEspecialidad; track item.nombre) {
+            <tr>
+              <td>{{ item.nombre }}</td>
+              <td>{{ item.total }}</td>
+              <td class="text-right">
+                <div class="row-between">
+                  <span class="muted">{{ porcentaje(item.total, maxEspecialidad()) }}%</span>
+                  <div class="progress">
+                    <span [style.width.%]="porcentaje(item.total, maxEspecialidad())"></span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
